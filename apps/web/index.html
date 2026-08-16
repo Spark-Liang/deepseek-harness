@@ -3,6 +3,80 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      /* dsh Safari/iOS15 compat polyfills (injected for local fix) */
+      (function () {
+        if (typeof AbortSignal !== "undefined" && !AbortSignal.timeout) {
+          AbortSignal.timeout = function (ms) {
+            var c = new AbortController();
+            setTimeout(function () {
+              try { c.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError")); }
+              catch (e) { c.abort(); }
+            }, ms);
+            return c.signal;
+          };
+        }
+        if (typeof AbortSignal !== "undefined" && !AbortSignal.any) {
+          AbortSignal.any = function (signals) {
+            var c = new AbortController();
+            function onAbort() { if (c.signal.aborted) return; try { c.abort(this.reason); } catch (e) { c.abort(); } }
+            for (var i = 0; i < signals.length; i++) {
+              if (signals[i].aborted) { onAbort.call(signals[i]); break; }
+              signals[i].addEventListener("abort", onAbort, { once: true });
+            }
+            return c.signal;
+          };
+        }
+        if (typeof Promise !== "undefined" && !Promise.any) {
+          Promise.any = function (iterable) {
+            return new Promise(function (resolve, reject) {
+              var items = Array.isArray(iterable) ? iterable : Array.from(iterable);
+              var len = items.length, pending = len, errors = new Array(len);
+              if (len === 0) { reject(new AggregateError([], "All promises were rejected")); return; }
+              items.forEach(function (p, i) {
+                Promise.resolve(p).then(resolve, function (e) {
+                  errors[i] = e; pending -= 1;
+                  if (pending === 0) reject(new AggregateError(errors, "All promises were rejected"));
+                });
+              });
+            });
+          };
+        }
+        if (typeof structuredClone === "undefined") {
+          globalThis.structuredClone = function (value) {
+            return JSON.parse(JSON.stringify(value));
+          };
+        }
+        if (typeof Object.hasOwn !== "function") {
+          Object.hasOwn = function (obj, key) {
+            return Object.prototype.hasOwnProperty.call(Object(obj), key);
+          };
+        }
+        if (typeof String.prototype.replaceAll !== "function") {
+          String.prototype.replaceAll = function (search, replacement) {
+            if (search instanceof RegExp) {
+              if (!search.global) throw new TypeError("replaceAll called with a non-global RegExp");
+              return this.replace(search, replacement);
+            }
+            return this.split(search).join(replacement);
+          };
+        }
+        if (typeof crypto !== "undefined" && typeof crypto.randomUUID !== "function") {
+          Object.defineProperty(crypto, "randomUUID", {
+            value: function () {
+              var b = new Uint8Array(16);
+              crypto.getRandomValues(b);
+              b[6] = (b[6] & 0x0f) | 0x40;
+              b[8] = (b[8] & 0x3f) | 0x80;
+              var hex = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); });
+              return hex.slice(0, 4).join("") + "-" + hex.slice(4, 6).join("") + "-" + hex.slice(6, 8).join("") + "-" + hex.slice(8, 10).join("") + "-" + hex.slice(10, 16).join("");
+            },
+            configurable: true,
+            writable: true
+          });
+        }
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>DeepSeek Harness</title>
