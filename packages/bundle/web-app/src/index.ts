@@ -87,7 +87,7 @@ export function resolveLanTrust(bindHost: string, extra: readonly string[]): Web
     ? Object.values(networkInterfaces()).flat()
       .filter((iface): iface is NonNullable<typeof iface> => iface !== undefined && iface.family === 'IPv4' && !iface.internal)
       .map(iface => iface.address)
-    : []
+    : bindHost === LOOPBACK_HOST ? [] : [bindHost]
   return { lanAddresses, trustedHosts: [...lanAddresses, ...extra] }
 }
 
@@ -105,11 +105,14 @@ function webSurfacePrompt(webUrl: string): string {
     + 'Do not start a replacement server unless the user asks; if one is needed, use a managed background job and verify its exact URL.'
 }
 
-/** Resolve the canonical loopback URL from the active Web server. */
+/** Resolve the canonical URL from the active Web server bind. */
 function localWebUrl(ctx: Context): string {
-  const port = ctx.get('webServer')?.port
+  const server = ctx.get('webServer')
+  if (server === undefined) throw new Error('web-app: webServer service missing while resolving Web runtime')
+  const port = server.port
   if (port === undefined) throw new Error('web-app: webServer service missing while resolving Web runtime')
-  return `http://${LOOPBACK_HOST}:${String(port)}`
+  const host = server.host === ALL_INTERFACES_HOST || server.host === LOOPBACK_HOST ? LOOPBACK_HOST : server.host
+  return `http://${host}:${String(port)}`
 }
 
 /** Dist location is workspace knowledge of this bundle: resolved through the frontend package exports, not configured. */

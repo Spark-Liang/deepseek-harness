@@ -31,4 +31,11 @@ describe('resolveLanTrust', () => {
     expect(resolveLanTrust('127.0.0.1', ['lab.internal']))
       .toEqual({ lanAddresses: [], trustedHosts: ['lab.internal'] })
   })
+
+  it('trusts and displays a concrete non-loopback IPv4 bind itself', () => {
+    expect(resolveLanTrust('172.25.231.105', []))
+      .toEqual({ lanAddresses: ['172.25.231.105'], trustedHosts: ['172.25.231.105'] })
+    expect(resolveLanTrust('172.25.231.105', ['lab.internal']))
+      .toEqual({ lanAddresses: ['172.25.231.105'], trustedHosts: ['172.25.231.105', 'lab.internal'] })
+  })
 })
